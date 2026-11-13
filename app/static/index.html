@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keitaro wrapper</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <h1>Keitaro wrapper</h1>
+    <nav>
+      <button class="tab active" data-tab="create">Создать кампанию</button>
+      <button class="tab" data-tab="editor">Редактор кампании</button>
+    </nav>
+  </header>
+
+  <main>
+    <div id="toast" class="toast hidden"></div>
+
+    <!-- Создаватор -->
+    <section id="tab-create" class="panel">
+      <form id="create-form" class="card form" autocomplete="off">
+        <label>Название кампании
+          <div class="prefixed">
+            <span id="prefix" class="prefix"></span>
+            <input name="name" required placeholder="campaign1">
+          </div>
+        </label>
+        <label>Гео (код страны)
+          <input name="geo" required maxlength="2" placeholder="AU" style="text-transform:uppercase">
+        </label>
+        <label>Оффер
+          <div class="offer-picker" data-target="offer_id">
+            <input class="offer-search" placeholder="ID или название оффера">
+            <ul class="offer-results hidden"></ul>
+          </div>
+          <input type="hidden" name="offer_id">
+        </label>
+        <div class="row3">
+          <label>Домен <select name="domain_id"></select></label>
+          <label>Группа <select name="group_id"></select></label>
+          <label>Источник <select name="traffic_source_id"></select></label>
+        </div>
+        <button type="submit" class="primary">Создать</button>
+      </form>
+      <div id="create-result"></div>
+    </section>
+
+    <!-- Редактор -->
+    <section id="tab-editor" class="panel hidden">
+      <div class="card toolbar">
+        <select id="campaign-select"><option value="">— выберите кампанию —</option></select>
+        <button id="fetch-btn" class="primary">Fetch streams</button>
+      </div>
+      <div id="campaign-view"></div>
+    </section>
+  </main>
+
+  <template id="stream-tpl">
+    <div class="card stream">
+      <div class="stream-head">
+        <div>
+          <strong class="stream-name"></strong>
+          <span class="muted stream-meta"></span>
+        </div>
+        <div class="stream-actions">
+          <span class="badge draft hidden">не опубликован</span>
+          <button class="cancel-btn hidden">Cancel</button>
+          <button class="push-btn primary hidden">Push to Keitaro</button>
+        </div>
+      </div>
+      <table class="offers hidden">
+        <thead><tr><th>ID</th><th>Оффер</th><th class="num">Доля</th><th>Pin</th><th></th></tr></thead>
+        <tbody></tbody>
+        <tfoot><tr><td></td><td class="muted">Итого</td><td class="num total"></td><td colspan="2"></td></tr></tfoot>
+      </table>
+      <p class="muted no-offers hidden">Поток без офферов — содержимое не отображается.</p>
+      <div class="add-offer hidden">
+        <div class="offer-picker">
+          <input class="offer-search" placeholder="Добавить оффер: ID или название">
+          <ul class="offer-results hidden"></ul>
+        </div>
+        <button class="add-btn" disabled>Добавить</button>
+      </div>
+    </div>
+  </template>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
