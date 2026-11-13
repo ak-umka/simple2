@@ -57,6 +57,8 @@ class StreamOffer(Base):
     offer_name: Mapped[str] = mapped_column(String(512), default="")
     share: Mapped[int] = mapped_column(Integer, default=0)
     pinned: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Значение pinned на момент последней публикации — к нему возвращает Cancel
+    pinned_published: Mapped[bool] = mapped_column(Boolean, default=False)
     status: Mapped[str] = mapped_column(String(16), default=OFFER_ACTIVE)
     # Добавлен в обёртке, но ещё не опубликован в Keitaro (Cancel удаляет такие)
     is_new: Mapped[bool] = mapped_column(Boolean, default=False)

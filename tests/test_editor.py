@@ -237,3 +237,20 @@ def test_cannot_add_offer_to_redirect_stream(db, kt):
     redirect = next(s for s in c.streams if s.schema == "redirect")
     with pytest.raises(services.ServiceError):
         services.add_offer(db, kt, redirect.id, 2)
+
+
+def test_cancel_reverts_pins(db, kt):
+    c = services.create_campaign(db, kt, "c", "AU", 1)
+    s = offer_stream(c)
+    services.add_offer(db, kt, s.id, 2)
+    so1 = next(so for so in s.offers if so.offer_id == 1)
+    services.pin_offer(db, so1.id, 70)
+    services.push_stream(db, kt, s.id)
+    assert so1.pinned and remote_shares(kt, s) == {1: 70, 2: 30}
+
+    so2 = next(so for so in s.offers if so.offer_id == 2)
+    services.pin_offer(db, so2.id, 20)
+    services.unpin_offer(db, so1.id)
+    services.cancel_stream(db, kt, s.id)
+    assert so1.pinned and not so2.pinned  # закрепления как при последней публикации
+    assert shares(s) == {1: (70, OFFER_ACTIVE), 2: (30, OFFER_ACTIVE)}

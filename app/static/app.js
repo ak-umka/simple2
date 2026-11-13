@@ -220,8 +220,20 @@ function replaceStream(s) {
   old.replaceWith(renderStream(s));
 }
 
-function streamAction(method, url, body, btn) {
-  return guarded(async () => replaceStream(await api(method, url, body)), btn);
+async function streamAction(method, url, body, btn, streamId) {
+  if (btn) btn.disabled = true;
+  try {
+    replaceStream(await api(method, url, body));
+    return true;
+  } catch (e) {
+    toast(e.message, true);
+    // сервер отклонил изменение — возвращаем поток к последнему известному состоянию
+    const s = streamId && currentCampaign.streams.find((x) => x.id === streamId);
+    if (s) replaceStream(s);
+    return false;
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 function renderStream(s) {
@@ -232,7 +244,7 @@ function renderStream(s) {
   el.querySelector(".stream-meta").textContent = ` · #${s.keitaro_id} · ${s.schema || "—"}`;
 
   for (const sel of [".badge.draft", ".cancel-btn", ".push-btn"]) el.querySelector(sel).classList.toggle("hidden", !s.dirty);
-  el.querySelector(".push-btn").addEventListener("click", (ev) => streamAction("POST", `/api/streams/${s.id}/push`, null, ev.currentTarget).then(() => toast("Опубликовано в Keitaro")));
+  el.querySelector(".push-btn").addEventListener("click", (ev) => streamAction("POST", `/api/streams/${s.id}/push`, null, ev.currentTarget).then((ok) => ok && toast("Опубликовано в Keitaro")));
   el.querySelector(".cancel-btn").addEventListener("click", (ev) => streamAction("POST", `/api/streams/${s.id}/cancel`, null, ev.currentTarget));
 
   if (!s.accepts_offers) {
@@ -246,7 +258,7 @@ function renderStream(s) {
   let total = 0;
   for (const o of s.offers) {
     if (o.status === "active") total += o.share;
-    tbody.appendChild(renderOfferRow(o));
+    tbody.appendChild(renderOfferRow(o, s.id));
   }
   const totalCell = table.querySelector(".total");
   totalCell.textContent = `${total}%`;
@@ -266,7 +278,7 @@ function renderStream(s) {
   return el;
 }
 
-function renderOfferRow(o) {
+function renderOfferRow(o, streamId) {
   const tr = document.createElement("tr");
   tr.className = o.status === "removed" ? "removed" : o.is_new ? "new" : "";
   tr.innerHTML = `<td></td><td class="name"></td><td class="num"></td><td></td><td class="num"></td>`;
@@ -288,12 +300,15 @@ function renderOfferRow(o) {
     val.min = 0;
     val.max = 100;
     val.value = o.share;
-    val.disabled = !o.pinned;
+    val.title = "Закреплённая доля, %";
+    val.classList.toggle("hidden", !o.pinned);
     box.addEventListener("change", () => {
-      if (box.checked) streamAction("POST", `/api/stream-offers/${o.id}/pin`, { share: Number(val.value) });
-      else streamAction("POST", `/api/stream-offers/${o.id}/unpin`);
+      if (box.checked) streamAction("POST", `/api/stream-offers/${o.id}/pin`, { share: o.share }, null, streamId);
+      else streamAction("POST", `/api/stream-offers/${o.id}/unpin`, null, null, streamId);
     });
-    val.addEventListener("change", () => streamAction("POST", `/api/stream-offers/${o.id}/pin`, { share: Number(val.value) }));
+    val.addEventListener("change", () =>
+      streamAction("POST", `/api/stream-offers/${o.id}/pin`, { share: Number(val.value) }, null, streamId)
+    );
     wrap.append(box, val);
     pinCell.appendChild(wrap);
 

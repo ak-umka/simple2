@@ -154,7 +154,14 @@ def sync_campaign(db: Session, kt: KeitaroClient, campaign: Campaign) -> Campaig
     return campaign
 
 
-def _apply_remote_stream(stream: Stream, rs: Dict[str, Any], names: Dict[int, str]) -> None:
+def _apply_remote_stream(
+    stream: Stream, rs: Dict[str, Any], names: Dict[int, str], publish_pins: bool = False
+) -> None:
+    """Приводит поток к состоянию Keitaro.
+
+    publish_pins=True (после Push) — текущие закрепления считаются опубликованными;
+    иначе (Fetch/Cancel) — закрепления откатываются к последней публикации.
+    """
     stream.name = rs.get("name") or ""
     stream.position = rs.get("position") or 0
     stream.schema = rs.get("schema") or ""
@@ -169,11 +176,15 @@ def _apply_remote_stream(stream: Stream, rs: Dict[str, Any], names: Dict[int, st
     for offer_id, ro in remote_offers.items():
         so = local.get(offer_id)
         if so is None:
-            so = StreamOffer(offer_id=offer_id, pinned=False)
+            so = StreamOffer(offer_id=offer_id, pinned=False, pinned_published=False)
             stream.offers.append(so)
         so.status = OFFER_ACTIVE
         so.share = int(ro.get("share") or 0)
         so.is_new = False
+        if publish_pins:
+            so.pinned_published = bool(so.pinned)
+        else:
+            so.pinned = bool(so.pinned_published)
         so.offer_name = names.get(offer_id, so.offer_name or "")
 
     for offer_id, so in local.items():
@@ -181,6 +192,7 @@ def _apply_remote_stream(stream: Stream, rs: Dict[str, Any], names: Dict[int, st
             so.status = OFFER_REMOVED
             so.share = 0
             so.pinned = False
+            so.pinned_published = False
 
     stream.dirty = False
 
@@ -240,6 +252,7 @@ def add_offer(db: Session, kt: KeitaroClient, stream_id: int, offer_id: int) -> 
                 offer_name=names[offer_id],
                 share=0,
                 pinned=False,
+                pinned_published=False,
                 status=OFFER_ACTIVE,
                 is_new=True,
             ))
@@ -321,7 +334,7 @@ def push_stream(db: Session, kt: KeitaroClient, stream_id: int) -> Stream:
         so.is_new = False  # опубликованы — больше не черновики
     if not isinstance(rs, dict) or "offers" not in rs:
         rs = kt.stream(stream.keitaro_id)
-    _apply_remote_stream(stream, rs, kt.offer_names())
+    _apply_remote_stream(stream, rs, kt.offer_names(), publish_pins=True)
     db.flush()
     return stream
 
